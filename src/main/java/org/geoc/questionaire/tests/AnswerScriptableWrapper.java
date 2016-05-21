@@ -7,7 +7,7 @@ import org.mozilla.javascript.annotations.JSGetter;
 import java.util.List;
 
 /**
- * Created by lrodriguez2002cu on 04/05/2016.
+ * Created by lrodr_000 on 04/05/2016.
  */
 public class AnswerScriptableWrapper extends ScriptableObject implements AnswerPrimitives {
 

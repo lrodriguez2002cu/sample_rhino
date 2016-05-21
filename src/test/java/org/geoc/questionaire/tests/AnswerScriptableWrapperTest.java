@@ -1,16 +1,38 @@
 package org.geoc.questionaire.tests;
 
 import junit.framework.TestCase;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 import org.mozilla.javascript.*;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by lrodriguez2002cu on 04/05/2016.
  */
 public class AnswerScriptableWrapperTest extends TestCase {
+
+
+    public class DateWrapFactory extends WrapFactory {
+
+       public Object wrap(Context cx, Scriptable scope, Object obj, Class<?>
+               staticType) {
+
+
+           if (obj instanceof Date) {
+               // Construct a JS date object
+               long time = ((Date) obj).getTime();
+               return cx.newObject(scope, "Date", new Object[] {time});
+           }
+
+
+           return super.wrap(cx, scope, obj, staticType);
+       }
+
+    }
+
 
     AnswerPrimitives valueWithThreeAnswerItems = new AnswerPrimitives() {
 
@@ -29,7 +51,7 @@ public class AnswerScriptableWrapperTest extends TestCase {
 
             return objects;
         }
-
+       
         public Object getValue(int index) {
             return objects.get(index);
         }
@@ -39,6 +61,69 @@ public class AnswerScriptableWrapperTest extends TestCase {
         }
     };
 
+    AnswerPrimitives valueWithDateNow = new AnswerPrimitives() {
+
+        List<Object> objects = new ArrayList<Object>();
+        {
+
+        }
+
+        public Object getValue() {
+            return new Date();
+        }
+
+        public List<Object> getValues() {
+
+            return objects;
+        }
+
+        public Object getValue(int index) {
+            return objects.get(index);
+        }
+
+        public int count() {
+            return objects.size();
+        }
+    };
+    
+
+    AnswerPrimitives valueWithDatesEqual = new AnswerPrimitives() {
+
+        DateTimeFormatter fmt = new DateTimeFormatterBuilder()
+                .appendDayOfMonth(2)
+                .appendLiteral('-')
+                .appendMonthOfYearShortText()
+                .appendLiteral('-')
+                .appendTwoDigitYear(1956)  // pivot = 1956
+                .toFormatter();
+
+        List<Object> objects = new ArrayList<Object>();
+        {
+
+        }
+
+        public Object getValue() {
+                DateTime dt = new DateTime("2016-04-20T21:39:45.618+02:00");
+                System.out.println("This is the date tested: " + fmt.print(dt));
+                return dt.toDate();
+
+        }
+
+        public List<Object> getValues() {
+
+            return objects;
+        }
+
+        public Object getValue(int index) {
+            return objects.get(index);
+        }
+
+        public int count() {
+            return objects.size();
+        }
+    };
+    
+    
     AnswerPrimitives valueWithFourAnswerItems = new AnswerPrimitives() {
 
         List<Object> objects = new ArrayList<Object>();
@@ -100,7 +185,7 @@ public class AnswerScriptableWrapperTest extends TestCase {
                     new Object[]{valueWithThreeAnswerItems});
 
             Object count = ScriptableObject.getProperty(testCounter, "count");
-            System.out.println("count = " + count);
+            System.out.println("count = " + count + " in testExpression()");
 
             Object value = ScriptableObject.getProperty(testCounter, "value");
             System.out.println("value = " + value);
@@ -194,6 +279,10 @@ public class AnswerScriptableWrapperTest extends TestCase {
         // Every Rhino VM begins with the enter()
         // This Context is not Android's Context
         Context rhino = Context.enter();
+        DateWrapFactory wrapFactory = new DateWrapFactory();
+        //wrapFactory.setJavaPrimitiveWrap(false);
+
+        rhino.setWrapFactory(wrapFactory);
         // Turn off optimization to make Rhino Android compatible
         rhino.setOptimizationLevel(-1);
         try {
@@ -239,6 +328,138 @@ public class AnswerScriptableWrapperTest extends TestCase {
         assertTrue(answer.equals(true));
 
     }
+    
+
+    public void testDates() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDateNow));
+
+        //is now less than 03 - april-2019?
+        Object answer = evaluateExpressionMultipleVariables("answer.value.getTime() < new Date('03/03/2029').getTime()", variables);
+        assertTrue(answer.equals(true));
+
+    }
+
+    public void testBasic() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        Object answer = evaluateExpressionMultipleVariables("1 == 1", variables);
+        assertTrue(answer.equals(true));
+
+    }
+
+    public void testBasic1() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("1 == 2", variables);
+
+/*        getDate()	Returns the day of the month (from 1-31)
+        getDay()	Returns the day of the week (from 0-6)
+        getFullYear()*/
+        assertTrue(answer.equals(false));
+
+    }
+
+    public void testBasicDate() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("new Date(2016, 04, 20).valueOf() == new Date(2016, 04, 20).valueOf()", variables);
+
+/*        getDate()	Returns the day of the month (from 1-31)
+        getDay()	Returns the day of the week (from 0-6)
+        getFullYear()*/
+        assertTrue(answer.equals(true));
+
+    }
+
+    public void testBasicDateFields() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("new Date(2016, 04, 20).getTime() == new Date(2016, 04, 20).getTime()", variables);
+
+/*        getDate()	Returns the day of the month (from 1-31)
+        getDay()	Returns the day of the week (from 0-6)
+        getFullYear()*/
+        assertTrue(answer.equals(true));
+
+    }
+
+    public void testBasicDateFields1() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("new Date(2016, 04, 20).getDate() == new Date(2016, 04, 20).getDate()", variables);
+
+        assertTrue(answer.equals(true));
+
+        answer = evaluateExpressionMultipleVariables("new Date(2016, 04, 20).getDay() == new Date(2016, 04, 20).getDay()", variables);
+
+        assertTrue(answer.equals(true));
+
+        answer = evaluateExpressionMultipleVariables("new Date(2016, 04, 20).getFullYear() == new Date(2016, 04, 20).getFullYear()", variables);
+
+        assertTrue(answer.equals(true));
+
+        answer = evaluateExpressionMultipleVariables("new Date(2017, 04, 20).getFullYear() > new Date(2016, 04, 20).getFullYear()", variables);
+
+        assertTrue(answer.equals(true));
+
+        answer = evaluateExpressionMultipleVariables("new Date(2017, 04, 20).getFullYear() < new Date(2016, 04, 20).getFullYear()", variables);
+
+        assertTrue(answer.equals(false));
+
+    }
+
+
+    public void testDatesEqual() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDatesEqual));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("answer.value.getFullYear() === new Date(2016, 03, 20).getFullYear()", variables);
+        assertTrue(answer.equals(true));
+
+        //in js getDate() gives the day of the month
+        answer = evaluateExpressionMultipleVariables("answer.value.getDate() === new Date(2016, 03, 20).getDate()", variables);
+        assertTrue(answer.equals(true));
+
+        //In java, using joda time the month starts in 1-Jan, 2-Feb, and so on, while in js start in 0-jan
+        //check the next fiddle for testing the js behavior https://jsfiddle.net/xv3kznc4/
+        answer = evaluateExpressionMultipleVariables("answer.value.getDay() === new Date(2016, 03, 20).getDay()", variables);
+        assertTrue(answer.equals(true));
+
+    }
+    
+    public void testDates1() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDateNow));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("answer.value < new Date('03/03/2012')", variables);
+        assertTrue(answer.equals(false));
+
+    }
+    
+    public void testDates2() throws IllegalAccessException, InstantiationException, InvocationTargetException {
+
+        List<Variable> variables = new ArrayList<Variable>();
+        variables.add(new Variable("answer", valueWithDateNow));
+        //variables.add(new Variable("answer1", valueWithFourAnswerItems));
+
+        Object answer = evaluateExpressionMultipleVariables("answer.value.getTime() < new Date('03/03/2019').getTime()", variables);
+        assertTrue(answer.equals(true));
+
+    }
 
     public void testWithAnswerExpression() throws IllegalAccessException, InstantiationException, InvocationTargetException {
 
@@ -256,6 +477,7 @@ public class AnswerScriptableWrapperTest extends TestCase {
 
         try {
             answer = evaluateExpressionMultipleVariables("answer.values", variables);
+            //TODO: investigate how to deal with exceptions, at this moment is expected to see some exceptions in the log
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -269,6 +491,10 @@ public class AnswerScriptableWrapperTest extends TestCase {
         // This Context is not Android's Context
         Context rhino = Context.enter();
         // Turn off optimization to make Rhino Android compatible
+        DateWrapFactory wrapFactory = new DateWrapFactory();
+        rhino.setWrapFactory(wrapFactory);
+        //wrapFactory.setJavaPrimitiveWrap(false);
+
         rhino.setOptimizationLevel(-1);
         try {
             Scriptable scope = rhino.initStandardObjects();
