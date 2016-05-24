@@ -2,6 +2,7 @@ package org.geoc.questionaire.tests;
 
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.annotations.JSConstructor;
+import org.mozilla.javascript.annotations.JSFunction;
 import org.mozilla.javascript.annotations.JSGetter;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class AnswerScriptableWrapper extends ScriptableObject implements AnswerP
         return answer.getValues();
     }
 
+    @JSFunction
     public Object getValue(int index) {
         return answer.getValue(index);
     }

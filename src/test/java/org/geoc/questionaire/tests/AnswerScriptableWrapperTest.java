@@ -271,6 +271,18 @@ public class AnswerScriptableWrapperTest extends TestCase {
 
     }
 
+
+    public void testExpressionEvaluationValueWithIndex() throws IllegalAccessException, InvocationTargetException, InstantiationException {
+
+        String answerVarName = "answer";
+
+        //some expressions on the answer
+        Object answer = null;
+        answer = evaluateExpression("answer.getValue(1).length", answerVarName, (AnswerPrimitives) valueWithThreeAnswerItems);
+        assertTrue(answer.equals(((AnswerPrimitives) valueWithThreeAnswerItems).getValues().get(1).toString().length()));
+
+    }
+
     public Object evaluateExpression(String javaScriptCode /*= "answer.value";*/, String answerVarName,
                                      AnswerPrimitives primitives) throws IllegalAccessException,
             InvocationTargetException, InstantiationException {
